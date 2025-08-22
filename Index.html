@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Login Register Panel IoT</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(120deg, #6a11cb, #2575fc);
+      color: #fff;
+      text-align: center;
+      padding: 30px;
+    }
+    .card {
+      background: #fff;
+      color: #333;
+      padding: 20px;
+      border-radius: 15px;
+      max-width: 400px;
+      margin: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    input, button {
+      width: 90%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #2575fc;
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #6a11cb;
+    }
+    #panel button {
+      width: 40%;
+      margin: 10px;
+      font-size: 18px;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Register -->
+  <div id="register" class="card">
+    <h2>Daftar Akun</h2>
+    <input type="text" id="regEmail" placeholder="Email">
+    <input type="password" id="regPass" placeholder="Password">
+    <button onclick="register()">Daftar</button>
+    <p>Sudah punya akun? <a href="#" onclick="showLogin()">Login</a></p>
+  </div>
+
+  <!-- Login -->
+  <div id="login" class="card hidden">
+    <h2>Login</h2>
+    <input type="text" id="logEmail" placeholder="Email">
+    <input type="password" id="logPass" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <p>Belum punya akun? <a href="#" onclick="showRegister()">Daftar</a></p>
+  </div>
+
+  <!-- Panel IoT -->
+  <div id="panel" class="card hidden">
+    <h2>Panel IoT</h2>
+    <p>Selamat datang, <span id="userEmail"></span></p>
+    <button onclick="sendCommand('ON')">ON</button>
+    <button onclick="sendCommand('OFF')">OFF</button>
+    <p><button onclick="logout()">Logout</button></p>
+  </div>
+
+<script>
+const dbUrl = "https://esp8266-8353a-default-rtdb.firebaseio.com";
+
+// Tampilkan halaman
+function showRegister() {
+  document.getElementById("register").classList.remove("hidden");
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("panel").classList.add("hidden");
+}
+function showLogin() {
+  document.getElementById("login").classList.remove("hidden");
+  document.getElementById("register").classList.add("hidden");
+  document.getElementById("panel").classList.add("hidden");
+}
+function showPanel(email) {
+  document.getElementById("panel").classList.remove("hidden");
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("register").classList.add("hidden");
+  document.getElementById("userEmail").innerText = email;
+}
+
+// Register User
+function register() {
+  const email = document.getElementById("regEmail").value;
+  const pass = document.getElementById("regPass").value;
+  if(!email || !pass) return alert("Isi semua field!");
+
+  fetch(dbUrl + "/users.json", {
+    method: "POST",
+    body: JSON.stringify({email, pass}),
+    headers: {"Content-Type": "application/json"}
+  }).then(() => {
+    alert("Pendaftaran berhasil!");
+    showLogin();
+  });
+}
+
+// Login User
+function login() {
+  const email = document.getElementById("logEmail").value;
+  const pass = document.getElementById("logPass").value;
+  
+  fetch(dbUrl + "/users.json")
+    .then(res => res.json())
+    .then(data => {
+      let success = false;
+      for (let id in data) {
+        if (data[id].email === email && data[id].pass === pass) {
+          success = true;
+          localStorage.setItem("user", email);
+          showPanel(email);
+          break;
+        }
+      }
+      if (!success) alert("Login gagal!");
+    });
+}
+
+// Logout
+function logout() {
+  localStorage.removeItem("user");
+  showLogin();
+}
+
+// Kirim perintah ke IoT
+function sendCommand(cmd) {
+  const email = localStorage.getItem("user");
+  fetch(dbUrl + "/commands.json", {
+    method: "POST",
+    body: JSON.stringify({user: email, command: cmd, time: new Date().toISOString()}),
+    headers: {"Content-Type": "application/json"}
+  });
+  alert("Perintah " + cmd + " terkirim!");
+}
+
+// Cek login sebelumnya
+window.onload = () => {
+  const user = localStorage.getItem("user");
+  if (user) showPanel(user);
+  else showLogin();
+}
+</script>
+
+</body>
+</html>
